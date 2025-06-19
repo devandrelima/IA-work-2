@@ -19,6 +19,7 @@ PRECISION = 0.005
 POPULATION_SIZE = 100
 MUTATION_RATE = 0.05
 NUM_GENERATIONS = 500
+STAGNATION_GENERATIONS = 150
 
 # Calculate the number of bits needed for each variable
 # Formula for precision: (sup - inf) / (2^k - 1)
@@ -142,6 +143,7 @@ def run_genetic_algorithm():
 
     best_overall_individual = None
     best_overall_fitness = -float('inf')
+    generations_since_last_improvement = 0
 
     print(f"Number of bits per variable: {BITS_PER_VARIABLE}")
     print(f"Chromosome length: {CHROMOSOME_LENGTH}\n")
@@ -157,6 +159,9 @@ def run_genetic_algorithm():
         if current_best_fitness > best_overall_fitness:
             best_overall_fitness = current_best_fitness
             best_overall_individual = current_best_individual
+            generations_since_last_improvement = 0
+        else:
+            generations_since_last_improvement += 1
 
         # c) Select parents for generating new individuals.
         parents = select_parents(fitness_scores, POPULATION_SIZE) # Select enough parents to create a new population
@@ -174,11 +179,8 @@ def run_genetic_algorithm():
 
                 new_population.extend([child1, child2])
             else:
-                # If there's an odd number of parents, just add the last one (possibly mutated)
                 new_population.append(mutate(parents[i], MUTATION_RATE))
 
-        # Ensure the new population size matches the original population size
-        # Truncate or pad if necessary (though with an even number of parents, it should be fine)
         new_population = new_population[:POPULATION_SIZE]
 
         # e) Erase old members of the population.
@@ -188,16 +190,21 @@ def run_genetic_algorithm():
         if (generation + 1) % 50 == 0 or generation == NUM_GENERATIONS - 1:
             x_val = bin_to_real(best_overall_individual[:CHROMOSOME_LENGTH//2], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
             y_val = bin_to_real(best_overall_individual[CHROMOSOME_LENGTH//2:], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
+
             print(f"Generation {generation + 1}:")
             print(f"  Best fitness so far: {best_overall_fitness:.6f}")
             print(f"  Corresponding (x, y): ({x_val:.4f}, {y_val:.4f})\n")
+
+        if generations_since_last_improvement >= STAGNATION_GENERATIONS:
+            print(f"Algorithm stopped due to stagnation. No significant improvement for {STAGNATION_GENERATIONS} generations.")
+            break
 
     # g) If time is over or the best individual satisfies performance requirements, return it. 
     final_x = bin_to_real(best_overall_individual[:CHROMOSOME_LENGTH//2], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
     final_y = bin_to_real(best_overall_individual[CHROMOSOME_LENGTH//2:], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
 
     print("\n--- Genetic Algorithm Results ---")
-    print(f"Global Maximum found:")
+    print("Global Maximum found:")
     print(f"  x = {final_x:.4f}")
     print(f"  y = {final_y:.4f}")
     print(f"  f(x,y) = {best_overall_fitness:.6f}")
