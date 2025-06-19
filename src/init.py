@@ -98,79 +98,78 @@ def mutar(cromossomo, taxaDeMutacao):
 
     return "".join(cromossomoMutado)
 
-# Main Genetic Algorithm loop
-def run_genetic_algorithm():
-    population = inicializarPopulacao(TAMANHO_POPULACAO, TAMANHO_CROMOSSOMO)
+def rodarAlgoritmoGenetico():
+    populacao = inicializarPopulacao(TAMANHO_POPULACAO, TAMANHO_CROMOSSOMO)
 
-    best_overall_individual = None
-    best_overall_fitness = -float('inf')
-    generations_since_last_improvement = 0
+    melhorIndividuo = None
+    melhorAvaliacao = -float('inf')
+    ultimaGeracaoAprimorada = 0
 
-    print(f"Number of bits per variable: {BITS_POR_VARIAVEL}")
-    print(f"Chromosome length: {TAMANHO_CROMOSSOMO}\n")
+    print(f"Número de bits por variável: {BITS_POR_VARIAVEL}")
+    print(f"Tamanho do cromossomo: {TAMANHO_CROMOSSOMO}\n")
 
-    for generation in range(NUMERO_GERACOES):
-        # b) Evaluate each individual in the population.
-        fitness_scores = avaliarPopulacao(population)
+    for geracao in range(NUMERO_GERACOES):
+        # b) Avaliar popução
+        avaliacoes = avaliarPopulacao(populacao)
 
-        # Find the best individual in the current generation
-        current_best_individual, current_best_fitness = max(fitness_scores, key=lambda item: item[1])
+        melhorIndividuoAtual, melhorAvaliacaoAtual = max(avaliacoes, key=lambda item: item[1])
 
-        # Update overall best
-        if current_best_fitness > best_overall_fitness:
-            best_overall_fitness = current_best_fitness
-            best_overall_individual = current_best_individual
-            generations_since_last_improvement = 0
+        if melhorAvaliacaoAtual > melhorAvaliacao:
+            melhorAvaliacao = melhorAvaliacaoAtual
+            melhorIndividuo = melhorIndividuoAtual
+             
+            ultimaGeracaoAprimorada = 0
         else:
-            generations_since_last_improvement += 1
+            ultimaGeracaoAprimorada += 1
 
-        # c) Select parents for generating new individuals.
-        parents = selecionarPais(fitness_scores, TAMANHO_POPULACAO) # Select enough parents to create a new population
+        # c) Selecionar pais
+        pais = selecionarPais(avaliacoes, TAMANHO_POPULACAO)
 
-        new_population = []
-        # d) Apply the operators of recombination (crossover) and mutation to generate new individuals. 
-        for i in range(0, len(parents), 2):
-            if i + 1 < len(parents):
-                parent1 = parents[i]
-                parent2 = parents[i+1]
-                child1, child2 = crossover(parent1, parent2)
+        novaPopulacao = []
+         
+        # d) Aplicar crossover e mutações
+        for i in range(0, len(pais), 2):
+            if i + 1 < len(pais):
+                pai1 = pais[i]
+                pai2 = pais[i+1]
+                filho1, filho2 = crossover(pai1, pai2)
 
-                child1 = mutar(child1, TAXA_MUTACAO)
-                child2 = mutar(child2, TAXA_MUTACAO)
+                filho1 = mutar(filho1, TAXA_MUTACAO)
+                filho2 = mutar(filho2, TAXA_MUTACAO)
 
-                new_population.extend([child1, child2])
+                novaPopulacao.extend([filho1, filho2])
             else:
-                new_population.append(mutar(parents[i], TAXA_MUTACAO))
+                novaPopulacao.append(mutar(pais[i], TAXA_MUTACAO))
 
-        new_population = new_population[:TAMANHO_POPULACAO]
+        novaPopulacao = novaPopulacao[:TAMANHO_POPULACAO]
 
-        # e) Erase old members of the population.
-        # f) Evaluate all new individuals and insert them into the population.
-        population = new_population
+        # e) Apagar população anterior
+        # f) Avaliar novos indivíduos
+        populacao = novaPopulacao
 
-        if (generation + 1) % 50 == 0 or generation == NUMERO_GERACOES - 1:
-            x_val = binarioParaReal(best_overall_individual[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
-            y_val = binarioParaReal(best_overall_individual[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+        if (geracao + 1) % 50 == 0 or geracao == NUMERO_GERACOES - 1:
+            realX = binarioParaReal(melhorIndividuo[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+            realY = binarioParaReal(melhorIndividuo[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
 
-            print(f"Generation {generation + 1}:")
-            print(f"  Best fitness so far: {best_overall_fitness:.6f}")
-            print(f"  Corresponding (x, y): ({x_val:.4f}, {y_val:.4f})\n")
+            print(f"Geração {geracao + 1}:")
+            print(f"  Melhor pontuação: {melhorAvaliacao:.6f}")
+            print(f"  Correspondente (x, y): ({realX:.4f}, {realY:.4f})\n")
 
-        if generations_since_last_improvement >= NUMERO_REPETICOES:
-            print(f"Algorithm stopped due to stagnation. No significant improvement for {NUMERO_REPETICOES} generations.")
+        # g) Se o tempo acabou ou o melhor Indivíduo satisfaz os requerimentos e desempenho, retorne-o, caso contrário, volte para o passo c).
+        if ultimaGeracaoAprimorada >= NUMERO_REPETICOES:
+            print(f"Algoritmo parou devido à estagnação. Não houve melhorias há {NUMERO_REPETICOES} gerações.")
             break
 
-    # g) If time is over or the best individual satisfies performance requirements, return it. 
-    final_x = binarioParaReal(best_overall_individual[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
-    final_y = binarioParaReal(best_overall_individual[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+    finalX = binarioParaReal(melhorIndividuo[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+    finalY = binarioParaReal(melhorIndividuo[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
 
-    print("\n--- Genetic Algorithm Results ---")
-    print("Global Maximum found:")
-    print(f"  x = {final_x:.4f}")
-    print(f"  y = {final_y:.4f}")
-    print(f"  f(x,y) = {best_overall_fitness:.6f}")
-    print(f"  Chromosome: {best_overall_individual}")
+    print("\n--- Resultados ---")
+    print("Valores máximos encontrados:")
+    print(f"  x = {finalX:.4f}")
+    print(f"  y = {finalY:.4f}")
+    print(f"  f(x,y) = {melhorAvaliacao:.6f}")
+    print(f"  Cromossomo: {melhorIndividuo}")
 
 
 if __name__ == "__main__":
-    run_genetic_algorithm()
+    rodarAlgoritmoGenetico()
