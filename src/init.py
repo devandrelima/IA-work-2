@@ -1,156 +1,117 @@
 import random
 import math
 
-# Function to maximize
-
-
-def f(x, y):
-    """
-    The function to maximize: f(x,y) = |e^(-x) - y^2 + 1| + 10^-4
-    """
+def funcaoMaximizacao(x, y):
     return abs(math.exp(-x) - (y**2) + 1) + (10**-4)
 
-# Genetic Algorithm Parameters
+INTERVALO_INICIO = -10
+INTERVAL_FINAL = 10
+PRECISAO = 0.005
+TAMANHO_POPULACAO = 100
+TAXA_MUTACAO = 0.05
+NUMERO_GERACOES = 500
+NUMERO_REPETICOES = 150
+
+MINIMO_BITS = math.log2(INTERVAL_FINAL - INTERVALO_INICIO / PRECISAO + 1)
+BITS_POR_VARIAVEL = math.ceil(MINIMO_BITS)
+TAMANHO_CROMOSSOMO = BITS_POR_VARIAVEL * 2
+
+def binarioParaReal(stringBinario, inicioDeIntervalo, finalDeIntervalo, bits):
+    return inicioDeIntervalo + ((finalDeIntervalo - inicioDeIntervalo) / (2**bits - 1)) * int(stringBinario, 2)
+
+def avalidarIndividuo(cromossomo):
+    meio = TAMANHO_CROMOSSOMO // 2
+    binarioX = cromossomo[:meio]
+    binarioY = cromossomo[meio:]
+
+    x = binarioParaReal(binarioX, INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+    y = binarioParaReal(binarioY, INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+
+    return funcaoMaximizacao(x, y)
+
+def gerarCromossomo(tamanho):
+    resultado = ''
+
+    for _ in range(tamanho):
+        resultado += random.choice(['0', '1'])
+
+    return resultado
 
 
-INTERVAL_START = -10
-INTERVAL_END = 10
-PRECISION = 0.005
-POPULATION_SIZE = 100
-MUTATION_RATE = 0.05
-NUM_GENERATIONS = 500
-STAGNATION_GENERATIONS = 150
+def inicializarPopulacao(tamanhoDaPopulacao, tamanhoDoCromossomo):
+    populacao = []
 
-# Calculate the number of bits needed for each variable
-# Formula for precision: (sup - inf) / (2^k - 1)
-# We need to find k such that:
+    for _ in range(tamanhoDaPopulacao):
+        populacao.append(gerarCromossomo(tamanhoDoCromossomo))
 
-# (INTERVAL_END - INTERVAL_START) / (2^k - 1) <= PRECISION
-# (2^k - 1) >= (INTERVAL_END - INTERVAL_START) / PRECISION
-# 2^k >= (INTERVAL_END - INTERVAL_START) / PRECISION + 1
-# k >= log2((INTERVAL_END - INTERVAL_START) / PRECISION + 1)
+    return populacao
 
-range_val = INTERVAL_END - INTERVAL_START
-min_bits = math.log2(range_val / PRECISION + 1)
-BITS_PER_VARIABLE = math.ceil(min_bits)
-CHROMOSOME_LENGTH = BITS_PER_VARIABLE * 2  # Two variables (x and y)
+def avaliarPopulacao(populacao):
+    pontuacoes = []
 
-# Helper function to convert binary to real value
+    for individuo in populacao:
+        avaliacao = avalidarIndividuo(individuo)
+        pontuacoes.append((individuo, avaliacao))
 
+    return pontuacoes
 
-def bin_to_real(binary_str, interval_start, interval_end, bits):
-    r_i = int(binary_str, 2)
-    real_val = interval_start + ((interval_end - interval_start) / (2**bits - 1)) * r_i
-    return real_val
+def selecionarPais(pontuacoes, tamanhoDaPopulacao):
+    somatorioDeAvaliacoes = sum(avaliacao for _, avaliacao in pontuacoes)
 
-# Helper function to evaluate an individual (chromosome)
+    if somatorioDeAvaliacoes == 0:
+        return random.sample([individuo for individuo, _ in pontuacoes], tamanhoDaPopulacao)
 
+    porcoesDaRoleta = []
+    ultimaPorcaoSelecionada = 0
 
-def evaluate_individual(chromosome):
-    mid_point = CHROMOSOME_LENGTH // 2
-    x_binary = chromosome[:mid_point]
-    y_binary = chromosome[mid_point:]
+    for individuo, avaliacao in pontuacoes:
+        tamanhoDaPorcao = (avaliacao / somatorioDeAvaliacoes) * 360
+        ultimaPorcaoSelecionada += tamanhoDaPorcao
+        porcoesDaRoleta.append((individuo, ultimaPorcaoSelecionada))
 
-    x = bin_to_real(x_binary, INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
-    y = bin_to_real(y_binary, INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
+    pais = []
+    for _ in range(tamanhoDaPopulacao):
+        porcaoAleatoria = random.uniform(0, 360)
 
-    return f(x, y)
-
-# 1. Initialize the population
-
-
-def generate_chromosome(length):
-    result = ''
-
-    for _ in range(length):
-        result += random.choice(['0', '1'])
-
-    return result
-
-
-def initialize_population(size, chromosome_length):
-    population = []
-
-    for _ in range(size):
-        population.append(generate_chromosome(chromosome_length))
-
-    return population
-
-# 2. Evaluate each individual in the population
-
-
-def calculate_fitness(population):
-    fitness_scores = []
-
-    for individual in population:
-        fitness = evaluate_individual(individual)
-        fitness_scores.append((individual, fitness))
-
-    return fitness_scores
-
-# 3. Select parents for generating new individuals (Roulette Wheel Selection)
-
-
-def select_parents(fitness_scores, num_parents):
-    total_fitness = sum(fitness for _, fitness in fitness_scores)
-
-    if total_fitness == 0:
-        return random.sample([ind for ind, _ in fitness_scores], num_parents)
-
-    cumulative_wheel_pieces = []
-    current_cumulative_value = 0
-
-    for individual, fitness in fitness_scores:
-        piece_size = (fitness / total_fitness) * 360
-        current_cumulative_value += piece_size
-        cumulative_wheel_pieces.append((individual, current_cumulative_value))
-
-    parents = []
-    for _ in range(num_parents):
-        r = random.uniform(0, 360)
-
-        for individual, cumulative_upper_bound in cumulative_wheel_pieces:
-            if r <= cumulative_upper_bound:
-                parents.append(individual)
+        for individuo, topoDaPorcaoSelecionada in porcoesDaRoleta:
+            if porcaoAleatoria <= topoDaPorcaoSelecionada:
+                pais.append(individuo)
                 break
 
-    return parents
+    return pais
 
-# 4. Apply crossover and mutation to generate new individuals
+def crossover(pai1, pai2):
+    meio = random.randint(1, len(pai1) - 1)
+     
+    filho1 = pai1[:meio] + pai2[meio:]
+    filho2 = pai2[:meio] + pai1[meio:]
+     
+    return filho1, filho2
 
 
-def crossover(parent1, parent2):
-    crossover_point = random.randint(1, len(parent1) - 1)
-    child1 = parent1[:crossover_point] + parent2[crossover_point:]
-    child2 = parent2[:crossover_point] + parent1[crossover_point:]
-    return child1, child2
+def mutar(cromossomo, taxaDeMutacao):
+    cromossomoMutado = list(cromossomo)
 
+    for i in range(len(cromossomoMutado)):
+        if random.uniform(0, 1) < taxaDeMutacao:
+            cromossomoMutado[i] = '1' if cromossomoMutado[i] == '0' else '0'
 
-def mutate(chromosome, mutation_rate):
-    mutated_chromosome = list(chromosome)
-
-    for i in range(len(mutated_chromosome)):
-        if random.uniform(0, 1) < mutation_rate:
-            mutated_chromosome[i] = '1' if mutated_chromosome[i] == '0' else '0'
-
-    return "".join(mutated_chromosome)
+    return "".join(cromossomoMutado)
 
 # Main Genetic Algorithm loop
-
-
 def run_genetic_algorithm():
-    population = initialize_population(POPULATION_SIZE, CHROMOSOME_LENGTH)
+    population = inicializarPopulacao(TAMANHO_POPULACAO, TAMANHO_CROMOSSOMO)
 
     best_overall_individual = None
     best_overall_fitness = -float('inf')
     generations_since_last_improvement = 0
 
-    print(f"Number of bits per variable: {BITS_PER_VARIABLE}")
-    print(f"Chromosome length: {CHROMOSOME_LENGTH}\n")
+    print(f"Number of bits per variable: {BITS_POR_VARIAVEL}")
+    print(f"Chromosome length: {TAMANHO_CROMOSSOMO}\n")
 
-    for generation in range(NUM_GENERATIONS):
+    for generation in range(NUMERO_GERACOES):
         # b) Evaluate each individual in the population.
-        fitness_scores = calculate_fitness(population)
+        fitness_scores = avaliarPopulacao(population)
 
         # Find the best individual in the current generation
         current_best_individual, current_best_fitness = max(fitness_scores, key=lambda item: item[1])
@@ -164,7 +125,7 @@ def run_genetic_algorithm():
             generations_since_last_improvement += 1
 
         # c) Select parents for generating new individuals.
-        parents = select_parents(fitness_scores, POPULATION_SIZE) # Select enough parents to create a new population
+        parents = selecionarPais(fitness_scores, TAMANHO_POPULACAO) # Select enough parents to create a new population
 
         new_population = []
         # d) Apply the operators of recombination (crossover) and mutation to generate new individuals. 
@@ -174,34 +135,34 @@ def run_genetic_algorithm():
                 parent2 = parents[i+1]
                 child1, child2 = crossover(parent1, parent2)
 
-                child1 = mutate(child1, MUTATION_RATE)
-                child2 = mutate(child2, MUTATION_RATE)
+                child1 = mutar(child1, TAXA_MUTACAO)
+                child2 = mutar(child2, TAXA_MUTACAO)
 
                 new_population.extend([child1, child2])
             else:
-                new_population.append(mutate(parents[i], MUTATION_RATE))
+                new_population.append(mutar(parents[i], TAXA_MUTACAO))
 
-        new_population = new_population[:POPULATION_SIZE]
+        new_population = new_population[:TAMANHO_POPULACAO]
 
         # e) Erase old members of the population.
         # f) Evaluate all new individuals and insert them into the population.
         population = new_population
 
-        if (generation + 1) % 50 == 0 or generation == NUM_GENERATIONS - 1:
-            x_val = bin_to_real(best_overall_individual[:CHROMOSOME_LENGTH//2], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
-            y_val = bin_to_real(best_overall_individual[CHROMOSOME_LENGTH//2:], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
+        if (generation + 1) % 50 == 0 or generation == NUMERO_GERACOES - 1:
+            x_val = binarioParaReal(best_overall_individual[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+            y_val = binarioParaReal(best_overall_individual[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
 
             print(f"Generation {generation + 1}:")
             print(f"  Best fitness so far: {best_overall_fitness:.6f}")
             print(f"  Corresponding (x, y): ({x_val:.4f}, {y_val:.4f})\n")
 
-        if generations_since_last_improvement >= STAGNATION_GENERATIONS:
-            print(f"Algorithm stopped due to stagnation. No significant improvement for {STAGNATION_GENERATIONS} generations.")
+        if generations_since_last_improvement >= NUMERO_REPETICOES:
+            print(f"Algorithm stopped due to stagnation. No significant improvement for {NUMERO_REPETICOES} generations.")
             break
 
     # g) If time is over or the best individual satisfies performance requirements, return it. 
-    final_x = bin_to_real(best_overall_individual[:CHROMOSOME_LENGTH//2], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
-    final_y = bin_to_real(best_overall_individual[CHROMOSOME_LENGTH//2:], INTERVAL_START, INTERVAL_END, BITS_PER_VARIABLE)
+    final_x = binarioParaReal(best_overall_individual[:TAMANHO_CROMOSSOMO//2], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
+    final_y = binarioParaReal(best_overall_individual[TAMANHO_CROMOSSOMO//2:], INTERVALO_INICIO, INTERVAL_FINAL, BITS_POR_VARIAVEL)
 
     print("\n--- Genetic Algorithm Results ---")
     print("Global Maximum found:")
